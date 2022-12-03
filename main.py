@@ -44,27 +44,27 @@ def gradient_descent(W1, W2, G1, G2, learning_rate: float) -> Tuple[np.ndarray, 
 
     return W1, W2
 
-def main(epochs: int, learning_rate: float, batch_size: int):
+def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: Callable):
     """Train the model."""
 
     # Initialize weights as small random values.
     W1 = (np.random.rand(1, 4, 3) - 0.5*0) * 1e-4
     W2 = (np.random.rand(1, 1, 5) - 0.5*0) * 1e-4
 
-    # Create dataset.
-    function = lambda x: (x[:, 0:1, :] + x[:, 1:2, :])
-    dataset_size = 6400
-    dataset = Dataset(function=function, input_size=2, dataset_size=dataset_size, input_range=[0, 1])
+    # Create the dataset.
+    dataset_size = 3200
+    dataset = Dataset(function=dataset_function, dataset_size=dataset_size, batch_size=batch_size, input_size=2, input_range=[0, 1])
+
+    # Initialize lists of loss values.
+    training_loss = []
+    testing_loss = []
 
     for epoch in range(epochs):
         print(f'\nEpoch {epoch+1}')
 
+        # Train the model.
         total_loss = 0
-        for batch in range(0, dataset_size, batch_size):
-            # Get the input and label data for the current batch, with shapes (batch, ..., 1).
-            x = dataset.x[batch:batch+batch_size, ...]
-            label = dataset.y[batch:batch+batch_size, ...]
-            
+        for batch, (x, label) in enumerate(dataset.training(), 1):
             # Make predictions with the model.
             h1, y = forward(x, W1, W2)
 
@@ -76,11 +76,45 @@ def main(epochs: int, learning_rate: float, batch_size: int):
             # Update weights using gradient descent.
             W1, W2 = gradient_descent(W1, W2, G1, G2, learning_rate)
 
-            if batch % 10 == 0:
-                print(f'Training loss: {loss:,.2e}', end='\r')
+            if batch % 50 == 0:
+                print(f'Batch {batch}: {loss:,.2e}', end='\r')
         
-        print(f'Training loss: {total_loss / dataset_size:,.2e}')
+        average_loss = total_loss / batch
+        training_loss.append(average_loss)
+        print(f'Training loss: {average_loss:,.2e}')
+    
+        # Test the model.
+        total_loss = 0
+        for batch, (x, label) in enumerate(dataset.testing(), 1):
+            # Make predictions with the model.
+            h1, y = forward(x, W1, W2)
+
+            # Calculate loss.
+            loss = mse(y, label)
+            total_loss += loss
+
+            if batch % 50 == 0:
+                print(f'Batch {batch}: {loss:,.2e}', end='\r')
+        
+        average_loss = total_loss / batch
+        testing_loss.append(average_loss)
+        print(f'Testing loss: {average_loss:,.2e}')
+    
+    # Plot the loss values over each iteration.
+    plt.figure()
+    plt.semilogy(range(1, epochs+1), training_loss, '.-', label='Training')
+    plt.semilogy(range(1, epochs+1), testing_loss, '.-', label='Testing')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid()
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
-    main(epochs=10, learning_rate=1e-2, batch_size=1)
+    sum_function = lambda x1, x2: x1 + x2
+    square_function = lambda x1, x2: x1 ** 2 + x2 ** 2
+    sin_function = lambda x1, x2: np.sin(x1 + x2)
+    exp_function = lambda x1, x2: np.exp(x1 + x2)
+
+    main(epochs=10, learning_rate=1e-2, batch_size=1, dataset_function=sum_function)
