@@ -7,15 +7,15 @@ from data import Dataset
 
 
 def forward(x, W1, W2) -> Tuple[np.ndarray, np.ndarray]:
-    """Return the output of the model with the given inputs."""
+    """Make a prediction using the model with the given inputs."""
 
     # Layer 1.
-    h1 = W1 @ np.append(x, [[[1]]], axis=1)
+    h1 = W1 @ np.append(x, np.ones((x.shape[0], 1, x.shape[2])), axis=1)
     # ReLU.
     h1 *= h1 > 0
 
     # Layer 2.
-    y = W2 @ np.append(h1, [[[1]]], axis=1)
+    y = W2 @ np.append(h1, np.ones((h1.shape[0], 1, h1.shape[2])), axis=1)
 
     return h1, y
 
@@ -23,11 +23,13 @@ def backpropagate(y: np.ndarray, label: np.ndarray, x: np.ndarray, h1: np.ndarra
     """Calculate gradients."""
 
     # Calculate gradients for the second layer.
-    G2 = 2 * (y - label) * np.append(h1, [[[1]]], axis=1).transpose((0, 2, 1))
+    G2 = 2 * (y - label) * np.append(h1, np.ones((h1.shape[0], 1, h1.shape[2])), axis=1).transpose((0, 2, 1))
+    G2 = np.mean(G2, axis=0)
 
     # Calculate gradients for the first layer.
-    x = np.append(x, [[[1]]], axis=1).transpose((0, 2, 1))
+    x = np.append(x, np.ones((x.shape[0], 1, x.shape[2])), axis=1).transpose((0, 2, 1))
     G1 = 2 * (y - label) * (h1 > 0) * W2[:, :, :4].transpose((0, 2, 1)) * x
+    G1 = np.mean(G1, axis=0)
 
     return G1, G2
 
@@ -123,4 +125,4 @@ if __name__ == '__main__':
     sin_function = lambda x1, x2: np.sin(x1 + x2)
     exp_function = lambda x1, x2: np.exp(x1 + x2)
 
-    main(epochs=50, learning_rate=1e-5, batch_size=1, dataset_function=square_function)
+    main(epochs=50, learning_rate=1e-4, batch_size=10, dataset_function=square_function)
