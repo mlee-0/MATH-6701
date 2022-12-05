@@ -52,8 +52,8 @@ def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: C
     W2 = (np.random.rand(1, 1, 5) - 0.5*0) * 1e-4
 
     # Create the dataset.
-    dataset_size = 3200
-    dataset = Dataset(function=dataset_function, dataset_size=dataset_size, batch_size=batch_size, input_size=2, input_range=[0, 1])
+    dataset_size = 10000
+    dataset = Dataset(function=dataset_function, dataset_size=dataset_size, batch_size=batch_size, input_size=2, input_range=[-5, 5])
 
     # Initialize lists of loss values.
     training_loss = []
@@ -61,6 +61,8 @@ def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: C
 
     for epoch in range(epochs):
         print(f'\nEpoch {epoch+1}')
+
+        dataset.shuffle()
 
         # Train the model.
         total_loss = 0
@@ -76,12 +78,11 @@ def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: C
             # Update weights using gradient descent.
             W1, W2 = gradient_descent(W1, W2, G1, G2, learning_rate)
 
-            if batch % 50 == 0:
+            if batch % 100 == 0:
                 print(f'Batch {batch}: {loss:,.2e}', end='\r')
         
         average_loss = total_loss / batch
         training_loss.append(average_loss)
-        print(f'Training loss: {average_loss:,.2e}')
     
         # Test the model.
         total_loss = 0
@@ -93,12 +94,17 @@ def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: C
             loss = mse(y, label)
             total_loss += loss
 
-            if batch % 50 == 0:
+            if batch % 100 == 0:
                 print(f'Batch {batch}: {loss:,.2e}', end='\r')
         
         average_loss = total_loss / batch
         testing_loss.append(average_loss)
-        print(f'Testing loss: {average_loss:,.2e}')
+
+        print(f'Loss: {training_loss[-1]:,.2e} (training), {testing_loss[-1]:,.2e} (testing)')
+
+        # Visualize results.
+        pass
+
     
     # Plot the loss values over each iteration.
     plt.figure()
@@ -117,4 +123,4 @@ if __name__ == '__main__':
     sin_function = lambda x1, x2: np.sin(x1 + x2)
     exp_function = lambda x1, x2: np.exp(x1 + x2)
 
-    main(epochs=10, learning_rate=1e-2, batch_size=1, dataset_function=sum_function)
+    main(epochs=50, learning_rate=1e-5, batch_size=1, dataset_function=square_function)

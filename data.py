@@ -37,3 +37,18 @@ class Dataset():
         """Return a generator of testing data."""
         count = round((1 - self.training_ratio) * self.dataset_size)
         return ((self.x[i:i+self.batch_size, ...], self.y[i:i+self.batch_size, ...]) for i in range(self.dataset_size - count, self.dataset_size, self.batch_size))
+    
+    def shuffle(self) -> None:
+        count = round(self.training_ratio * self.dataset_size)
+
+        # Shuffle the training data.
+        indices = np.arange(count)
+        np.random.shuffle(indices)
+        self.x[:count] = self.x[:count][indices]
+        self.y[:count] = self.y[:count][indices]
+
+        # Shuffle the testing data.
+        indices = np.arange(self.dataset_size - count)
+        np.random.shuffle(indices)
+        self.x[count:] = self.x[count:][indices]
+        self.y[count:] = self.y[count:][indices]
