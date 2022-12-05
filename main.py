@@ -1,3 +1,4 @@
+import random
 from typing import *
 
 import numpy as np
@@ -46,12 +47,15 @@ def gradient_descent(W1, W2, G1, G2, learning_rate: float) -> Tuple[np.ndarray, 
 
     return W1, W2
 
-def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: Callable):
+def main(epochs: int, learning_rate: float, momentum: float, batch_size: int, dataset_function: Callable):
     """Train the model."""
 
     # Initialize weights as small random values.
     W1 = (np.random.rand(1, 4, 3) - 0.5*0) * 1e-4
     W2 = (np.random.rand(1, 1, 5) - 0.5*0) * 1e-4
+
+    # Initialize momentum.
+    G1, G2 = np.zeros(W1.shape), np.zeros(W2.shape)
 
     # Create the dataset.
     dataset_size = 10000
@@ -76,7 +80,10 @@ def main(epochs: int, learning_rate: float, batch_size: int, dataset_function: C
             loss = mse(y, label)
             total_loss += loss
             # Calculate gradients for the weights.
-            G1, G2 = backpropagate(y, label, x, h1, W1, W2)
+            G1_, G2_ = backpropagate(y, label, x, h1, W1, W2)
+            # Calculate momentum as a weighted average of the previous gradients and the current gradient.
+            G1 = momentum * G1 + (1 - momentum) * G1_
+            G2 = momentum * G2 + (1 - momentum) * G2_
             # Update weights using gradient descent.
             W1, W2 = gradient_descent(W1, W2, G1, G2, learning_rate)
 
@@ -125,4 +132,6 @@ if __name__ == '__main__':
     sin_function = lambda x1, x2: np.sin(x1 + x2)
     exp_function = lambda x1, x2: np.exp(x1 + x2)
 
-    main(epochs=50, learning_rate=1e-4, batch_size=10, dataset_function=square_function)
+    random.seed(42)
+    main(epochs=50, learning_rate=1e-4, momentum=0.5, batch_size=5, dataset_function=square_function)
+    # Momentum implementation: https://www.youtube.com/watch?v=k8fTYJPd3_I
