@@ -39,7 +39,7 @@ def mse(prediction, label):
 
     return np.mean((prediction - label) ** 2)
 
-def gradient_descent(W1, W2, G1, G2, learning_rate: float) -> Tuple[np.ndarray, np.ndarray]:
+def gradient_descent(W1, W2, G1, G2, learning_rate, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
     """Update and return weights."""
 
     W1 = W1 - learning_rate * G1
@@ -47,7 +47,23 @@ def gradient_descent(W1, W2, G1, G2, learning_rate: float) -> Tuple[np.ndarray, 
 
     return W1, W2
 
-def main(epochs: int, learning_rate: float, momentum: float, batch_size: int, dataset_function: Callable):
+def adam(W1, W2, first_moment_1, first_moment_2, second_moment_1, second_moment_2, learning_rate, beta_1, beta_2, epoch, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+    """Update and return weights."""
+
+    # Bias-corrected moments. Must not be calculated in-place to avoid updating the original arrays.
+    first_moment_1 = first_moment_1 / (1 - beta_1 ** epoch)
+    first_moment_2 = first_moment_2 / (1 - beta_1 ** epoch)
+    second_moment_1 = second_moment_1 / (1 - beta_2 ** epoch)
+    second_moment_2 = second_moment_2 / (1 - beta_2 ** epoch)
+
+    epsilon = 1e-8
+
+    W1 = W1 - learning_rate * (first_moment_1 / np.sqrt(second_moment_1 + epsilon))
+    W2 = W2 - learning_rate * (first_moment_2 / np.sqrt(second_moment_2 + epsilon))
+
+    return W1, W2
+
+def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, beta_2: float, batch_size: int, dataset_function: Callable):
     """Train the model."""
 
     # Initialize weights as small random values.
@@ -55,7 +71,8 @@ def main(epochs: int, learning_rate: float, momentum: float, batch_size: int, da
     W2 = (np.random.rand(1, 1, 5) - 0.5*0) * 1e-4
 
     # Initialize momentum.
-    G1, G2 = np.zeros(W1.shape), np.zeros(W2.shape)
+    first_moment_1, first_moment_2 = np.zeros(W1.shape), np.zeros(W2.shape)
+    second_moment_1, second_moment_2 = np.zeros(W1.shape), np.zeros(W2.shape)
 
     # Create the dataset.
     dataset_size = 10000
@@ -65,8 +82,8 @@ def main(epochs: int, learning_rate: float, momentum: float, batch_size: int, da
     training_loss = []
     testing_loss = []
 
-    for epoch in range(epochs):
-        print(f'\nEpoch {epoch+1}')
+    for epoch in range(1, epochs+1):
+        print(f'\nEpoch {epoch}')
 
         dataset.shuffle()
 
@@ -75,17 +92,23 @@ def main(epochs: int, learning_rate: float, momentum: float, batch_size: int, da
         for batch, (x, label) in enumerate(dataset.training(), 1):
             # Make predictions with the model.
             h1, y = forward(x, W1, W2)
-
             # Calculate loss.
             loss = mse(y, label)
             total_loss += loss
-            # Calculate gradients for the weights.
-            G1_, G2_ = backpropagate(y, label, x, h1, W1, W2)
-            # Calculate momentum as a weighted average of the previous gradients and the current gradient.
-            G1 = momentum * G1 + (1 - momentum) * G1_
-            G2 = momentum * G2 + (1 - momentum) * G2_
-            # Update weights using gradient descent.
-            W1, W2 = gradient_descent(W1, W2, G1, G2, learning_rate)
+
+            # Calculate gradients with respect to the weights.
+            G1, G2 = backpropagate(y, label, x, h1, W1, W2)
+
+            # Calculate the first moment of the gradient as a weighted average of the previous gradients and the current gradient.
+            first_moment_1 = beta_1 * first_moment_1 + (1 - beta_1) * G1
+            first_moment_2 = beta_1 * first_moment_2 + (1 - beta_1) * G2
+            # Calculate the second moment of the gradient as a weighted average of the previous gradients and the current gradient.
+            second_moment_1 = beta_2 * second_moment_1 + (1 - beta_2) * (G1**2)
+            second_moment_2 = beta_2 * second_moment_2 + (1 - beta_2) * (G2**2)
+
+            # Update weights with the specified algorithm.
+            kwargs = {'W1': W1, 'W2': W2, 'G1': G1, 'G2': G2, 'first_moment_1': first_moment_1, 'first_moment_2': first_moment_2, 'second_moment_1': second_moment_1, 'second_moment_2': second_moment_2, 'learning_rate': learning_rate, 'beta_1': beta_1, 'beta_2': beta_2, 'epoch': epoch}
+            W1, W2 = optimize(**kwargs)  #W1, W2, G1, G2, learning_rate)
 
             if batch % 100 == 0:
                 print(f'Batch {batch}: {loss:,.2e}', end='\r')
@@ -133,5 +156,6 @@ if __name__ == '__main__':
     exp_function = lambda x1, x2: np.exp(x1 + x2)
 
     random.seed(42)
-    main(epochs=50, learning_rate=1e-4, momentum=0.5, batch_size=5, dataset_function=square_function)
+    main(epochs=50, optimize=adam, learning_rate=1e-3, beta_1=0.9, beta_2=0.99, batch_size=5, dataset_function=square_function)
     # Momentum implementation: https://www.youtube.com/watch?v=k8fTYJPd3_I
+    # Adam implementation: https://arxiv.org/pdf/1412.6980.pdf
