@@ -47,19 +47,27 @@ def gradient_descent(W1, W2, G1, G2, learning_rate, **kwargs) -> Tuple[np.ndarra
 
     return W1, W2
 
+def gradient_descent_momentum(W1, W2, first_moment_1, first_moment_2, learning_rate, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+    """Update and return weights."""
+
+    W1 = W1 - learning_rate * first_moment_1
+    W2 = W2 - learning_rate * first_moment_2
+
+    return W1, W2
+
 def adam(W1, W2, first_moment_1, first_moment_2, second_moment_1, second_moment_2, learning_rate, beta_1, beta_2, epoch, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
     """Update and return weights."""
 
     # Bias-corrected moments. Must not be calculated in-place to avoid updating the original arrays.
-    first_moment_1 = first_moment_1 / (1 - beta_1 ** epoch)
-    first_moment_2 = first_moment_2 / (1 - beta_1 ** epoch)
-    second_moment_1 = second_moment_1 / (1 - beta_2 ** epoch)
-    second_moment_2 = second_moment_2 / (1 - beta_2 ** epoch)
+    first_moment_1_ = first_moment_1 / (1 - beta_1 ** epoch)
+    first_moment_2_ = first_moment_2 / (1 - beta_1 ** epoch)
+    second_moment_1_ = second_moment_1 / (1 - beta_2 ** epoch)
+    second_moment_2_ = second_moment_2 / (1 - beta_2 ** epoch)
 
     epsilon = 1e-8
 
-    W1 = W1 - learning_rate * (first_moment_1 / np.sqrt(second_moment_1 + epsilon))
-    W2 = W2 - learning_rate * (first_moment_2 / np.sqrt(second_moment_2 + epsilon))
+    W1 = W1 - learning_rate * (first_moment_1_ / (np.sqrt(second_moment_1_) + epsilon))
+    W2 = W2 - learning_rate * (first_moment_2_ / (np.sqrt(second_moment_2_) + epsilon))
 
     return W1, W2
 
@@ -76,7 +84,7 @@ def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, b
 
     # Create the dataset.
     dataset_size = 10000
-    dataset = Dataset(function=dataset_function, dataset_size=dataset_size, batch_size=batch_size, input_size=2, input_range=[-5, 5])
+    dataset = Dataset(function=dataset_function, dataset_size=dataset_size, batch_size=batch_size, input_size=2, input_range=[-10, 10])
 
     # Initialize lists of loss values.
     training_loss = []
@@ -108,7 +116,7 @@ def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, b
 
             # Update weights with the specified algorithm.
             kwargs = {'W1': W1, 'W2': W2, 'G1': G1, 'G2': G2, 'first_moment_1': first_moment_1, 'first_moment_2': first_moment_2, 'second_moment_1': second_moment_1, 'second_moment_2': second_moment_2, 'learning_rate': learning_rate, 'beta_1': beta_1, 'beta_2': beta_2, 'epoch': epoch}
-            W1, W2 = optimize(**kwargs)  #W1, W2, G1, G2, learning_rate)
+            W1, W2 = optimize(**kwargs)
 
             if batch % 100 == 0:
                 print(f'Batch {batch}: {loss:,.2e}', end='\r')
@@ -133,10 +141,6 @@ def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, b
         testing_loss.append(average_loss)
 
         print(f'Loss: {training_loss[-1]:,.2e} (training), {testing_loss[-1]:,.2e} (testing)')
-
-        # Visualize results.
-        pass
-
     
     # Plot the loss values over each iteration.
     plt.figure()
@@ -148,14 +152,35 @@ def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, b
     plt.legend()
     plt.show()
 
+    return training_loss, testing_loss
+
 
 if __name__ == '__main__':
     sum_function = lambda x1, x2: x1 + x2
     square_function = lambda x1, x2: x1 ** 2 + x2 ** 2
     sin_function = lambda x1, x2: np.sin(x1 + x2)
     exp_function = lambda x1, x2: np.exp(x1 + x2)
+    norm_function = lambda x1, x2: np.sqrt(x1 ** 2 + x2 ** 2)
 
-    random.seed(42)
-    main(epochs=50, optimize=adam, learning_rate=1e-3, beta_1=0.9, beta_2=0.99, batch_size=5, dataset_function=square_function)
-    # Momentum implementation: https://www.youtube.com/watch?v=k8fTYJPd3_I
-    # Adam implementation: https://arxiv.org/pdf/1412.6980.pdf
+    seed = 42
+    epochs = 50
+    batch_size = 50
+
+    np.random.seed(seed)
+    training_loss_1, testing_loss_1 = main(epochs=epochs, optimize=gradient_descent, learning_rate=1e-3, beta_1=0.0, beta_2=0.0, batch_size=batch_size, dataset_function=norm_function)
+
+    np.random.seed(seed)
+    training_loss_2, testing_loss_2 = main(epochs=epochs, optimize=gradient_descent_momentum, learning_rate=1e-3, beta_1=0.9, beta_2=0.0, batch_size=batch_size, dataset_function=norm_function)
+
+    np.random.seed(seed)
+    training_loss_3, testing_loss_3 = main(epochs=epochs, optimize=adam, learning_rate=1e-3, beta_1=0.9, beta_2=0.9, batch_size=batch_size, dataset_function=norm_function)
+
+    plt.figure()
+    plt.semilogy(range(1, epochs+1), training_loss_1, '.-', label='Gradient Descent')
+    plt.semilogy(range(1, epochs+1), training_loss_2, '.-', label='Gradient Descent w/ Momentum')
+    plt.semilogy(range(1, epochs+1), training_loss_3, '.-', label='Adam')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.grid()
+    plt.legend()
+    plt.show()
