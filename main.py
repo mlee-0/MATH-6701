@@ -148,6 +148,7 @@ def main(epochs: int, optimize: Callable, learning_rate: float, beta_1: float, b
     plt.semilogy(range(1, epochs+1), testing_loss, '.-', label='Testing')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.ylim(bottom=1e-2)
     plt.grid()
     plt.legend()
     plt.show()
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     norm_function = lambda x1, x2: np.sqrt(x1 ** 2 + x2 ** 2)
 
     seed = 42
-    epochs = 50
+    epochs = 100
     batch_size = 50
 
     np.random.seed(seed)
@@ -181,6 +182,7 @@ if __name__ == '__main__':
     plt.semilogy(range(1, epochs+1), training_loss_3, '.-', label='Adam')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
+    plt.ylim(bottom=1e-2)
     plt.grid()
     plt.legend()
     plt.show()
